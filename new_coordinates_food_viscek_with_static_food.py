@@ -320,14 +320,7 @@ def print_final_stats():
 # Function to modify food parameters during simulation
 def set_food_params(new_positions=None, new_respawn_delay=None, new_food_radius=None, 
                     new_consumption_rate=None, new_attraction_strength=None):
-    """
-    Update food parameters during simulation.
-    - new_positions: numpy array of shape (num_food, 2) with new positions
-    - new_respawn_delay: integer representing steps to wait before respawning
-    - new_food_radius: float for the visual radius of food circles
-    - new_consumption_rate: rate at which food is consumed when eaten
-    - new_attraction_strength: strength of food attraction for particles
-    """
+    
     global food_sources, food_positions, food_respawn_delay, food_radius
     global food_consumption_rate, food_attraction_strength, food_plots
     
@@ -362,21 +355,3 @@ def set_food_params(new_positions=None, new_respawn_delay=None, new_food_radius=
 
 # Uncomment to call this when you want to see the final statistics
 print_final_stats()
-
-# Example of changing parameters:
-# set_food_params(new_respawn_delay=100, new_food_radius=3.0, new_consumption_rate=0.02)
-# 
-# # Example of changing food positions:
-# new_positions = np.array([
-#     [8.0, 8.0],
-#     [16.0, 8.0],
-#     [24.0, 8.0],
-#     [8.0, 16.0],
-#     [16.0, 16.0], 
-#     [24.0, 16.0],
-#     [8.0, 24.0],
-#     [16.0, 24.0],
-#     [24.0, 24.0],
-#     [20.0, 20.0]
-# ])
-# set_food_params(new_positions=new_positions)
