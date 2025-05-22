@@ -21,7 +21,7 @@ iterations = 10000
 eta = 0.15  # Noise parameter
 
 # Food environment parameters
-food_count = 5  # Number of food sources
+food_count = 1  # Number of food sources
 food_radius = 2.0  # Radius of influence for food
 food_lifetime_max = 100  # Maximum lifetime of a food source
 food_replenish_rate = 0.02  # Probability of new food appearing per step
@@ -30,7 +30,8 @@ food_attraction_strength = 1.5  # Base strength of food attraction
 # Initialize particles with random positions and orientations
 pos = np.random.uniform(0, L, size=(N, 2))
 orient = np.random.uniform(-np.pi, np.pi, size=N)
-urge = np.random.uniform(0.2, 0.8, size=N)  # Individual "hunger" levels
+#urge = np.random.uniform(0.2, 0.8, size=N)  # Individual "hunger" levels
+urge = 0
 
 # Initialize food sources
 food_positions = np.random.uniform(0, L, size=(food_count, 2))

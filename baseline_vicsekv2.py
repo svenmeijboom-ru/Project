@@ -5,8 +5,13 @@ from scipy.spatial import cKDTree
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
 from scipy.sparse.csgraph import connected_components
+import time
 
 np.random.seed(123) 
+
+# Timing variables
+start_time = time.time()  # Record real-world start time
+frame_to_mtu_conversion = 0.01   # Model Time Unit conversion (100 frames = 1 MTU)
 
 # Tracking variables initialization
 cohesion_history = []
@@ -25,23 +30,28 @@ rho = 3.0  # Particle density
 N = int(rho*30)  # Number of particles
 print(N)
 
-# Particle movement parameters
-w_align = 1.0
-w_cohesion = 0.02
-w_separation = 0.01
-separation_radius = 0.3
+# Particle movement parameters - UPDATED WEIGHTS
+w_align = 1.5      # INCREASED to prioritize maintaining group direction
+w_cohesion = 0.8   # SIGNIFICANTLY INCREASED to keep flock together
+w_separation = 0.15  # INCREASED to prevent overcrowding but not too much
+separation_radius = 0.5  # INCREASED slightly to give boids more personal space
 r0 = 2 # Interaction radius
 deltat = 1.0  # Time step (unused)
 factor = 0.5
 v0 = r0/deltat*factor  # Base speed
 eta = 0.05  # Noise parameter
 
-# Food parameters
-num_food = 4  # number of food sources (fixed positions)
-eat_radius = 0.5
-food_attraction_strength = 1
 
-# Food lifetime metrics
+# Food parameters - ADJUSTED
+num_food = 1  # number of food sources (fixed positions)
+eat_radius = 0.5
+food_attraction_strength = 0.6  # DECREASED from 1.0 to be less dominant
+
+# Add distance-based food attraction scaling
+food_max_influence_distance = 15.0  # Maximum distance at which food has full influence
+food_min_influence_distance = 1.0   # Distance at which attraction begins decreasing
+
+# Enhanced food lifetime metrics
 food_lifetime = np.zeros(num_food, dtype=int)  # Track frames each food exists
 food_creation_time = np.zeros(num_food, dtype=int)  # When each food was created/respawned
 food_consumption_count = np.zeros(num_food, dtype=int)  # How many times each food spot was consumed
@@ -55,14 +65,6 @@ last_food_id = None  # Track the ID of the last food consumed
 # Initialize particles
 pos = np.random.uniform(0, L, size=(N, 2))
 orient = np.random.uniform(-np.pi, np.pi, size=N)
-
-
-# Create fixed food positions (uniformly spaced in a 2D grid)
-# grid_side = int(np.ceil(np.sqrt(num_food)))
-# x_coords = np.linspace(0.2 * L, 0.8 * L, grid_side)
-# y_coords = np.linspace(0.2 * L, 0.8 * L, grid_side)
-# xx, yy = np.meshgrid(x_coords, y_coords)
-# food_positions = np.vstack([xx.ravel(), yy.ravel()]).T[:num_food]
 
 def create_evenly_spaced_food(num_x, num_y, L):
     """
@@ -91,11 +93,9 @@ def create_evenly_spaced_food(num_x, num_y, L):
     
     return np.array(food_positions)
 
-# Then add this code to create the food positions:
 # If you want a square grid (2x2, 3x3, etc.)
 grid_side = int(np.ceil(np.sqrt(num_food)))
 food_positions = create_evenly_spaced_food(grid_side, grid_side, L)[:num_food]
-
 
 # Track which food sources are "active" (True = available)
 food_active = np.ones(num_food, dtype=bool)
@@ -107,20 +107,38 @@ food_released = False # only release food spawn after flock has stabilized
 food_encounter_counts = np.zeros(num_food, dtype=int)  # Track how many boids get close to each food
 mean_time_to_consumption = []  # Average time from spawn to consumption
 
-
 fig, ax = plt.subplots(figsize=(6, 6))
 cos0, sin0 = np.cos(orient), np.sin(orient)
 qv = ax.quiver(pos[:, 0], pos[:, 1], cos0, sin0, orient, clim=[-np.pi, np.pi])
 sc = ax.scatter(food_positions[:, 0], food_positions[:, 1], marker='o', s=100, color='red')
 
-time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, color='black')
+# Text elements for displays
+frame_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, color='black')
+elapsed_text = ax.text(0.7, 0.95, '', transform=ax.transAxes, fontsize=10, color='darkgreen')
 food_text = ax.text(0.02, 0.9, '', transform=ax.transAxes, fontsize=10, color='blue')
+flock_info_text = ax.text(0.02, 0.85, '', transform=ax.transAxes, fontsize=10, color='purple')
+
+def sigmoid_scaling(distance, max_dist, min_dist):
+    """Scale food attraction based on distance using a sigmoid-like function"""
+    if distance < min_dist:
+        return 1.0
+    elif distance > max_dist:
+        return 0.2  # Still maintain some minimal attraction
+    else:
+        # Smooth transition between full and minimal attraction
+        normalized_dist = (distance - min_dist) / (max_dist - min_dist)
+        return 1.0 - 0.8 * (normalized_dist ** 2)  # Quadratic falloff
 
 def animate(i):
     global orient, pos, food_active, stabilized_frame, food_released, food_release_frame
     global food_lifetime, food_creation_time, food_consumption_count, food_lifetime_history
     global food_consumption_times, food_consumption_positions, last_food_id
     global food_total_frames_active, food_availability_ratio
+    
+    # Track real-world elapsed time
+    real_elapsed = time.time() - start_time
+    # Model Time Units calculation
+    mtu = i * frame_to_mtu_conversion
 
     # Neighbor interactions
     tree = cKDTree(pos, boxsize=[L, L])
@@ -142,6 +160,9 @@ def animate(i):
     cohesion_matrix = sparse.coo_matrix((delta_pos[:, 0] + 1j * delta_pos[:, 1], (dist.row, dist.col)), shape=(N, N))
     cohesion_vec = np.squeeze(np.asarray(cohesion_matrix.tocsr().sum(axis=1)))
 
+    # Count neighbors for each boid - NEW
+    neighbor_counts = np.bincount(dist.row, minlength=N)
+    
     # ---------- SEPARATION ----------
     separation_force = -delta_pos / (np.linalg.norm(delta_pos, axis=1, keepdims=True) + 1e-8)
     mask = np.linalg.norm(delta_pos, axis=1) < separation_radius
@@ -160,7 +181,7 @@ def animate(i):
 
     # Release food only after both cohesion and flocking conditions are met
     if 'flocking_frame' in globals() and stabilized_frame is not None and not food_released:
-        print(f"Food released at frame {i} ({i * 0.01:.2f} s)")
+        print(f"Food released at frame {i} (MTU: {mtu:.2f}, Real time: {real_elapsed:.2f}s)")
         food_released = True
         food_release_frame = i  # Track the frame food appears
         # Initialize the creation time for all food sources when they are first released
@@ -176,7 +197,7 @@ def animate(i):
         if i > food_release_frame:
             availability = np.sum(food_active) / num_food
             food_availability_ratio.append(availability)
-
+        
         active_food_positions = food_positions[food_active]
 
         if len(active_food_positions) > 0:
@@ -185,8 +206,23 @@ def animate(i):
             f_pos = active_food_positions[idx_food]
             delta_food = (f_pos - pos + L / 2) % L - L / 2
             norms = np.linalg.norm(delta_food, axis=1)
+            
+            # Apply distance-based scaling to food attraction - NEW
+            food_scalings = np.array([sigmoid_scaling(d, food_max_influence_distance, 
+                                                    food_min_influence_distance) for d in d_food])
+            
+            # Scale food attraction by neighbor count - NEW
+            # Boids with more neighbors (in denser areas of flock) are less attracted to food
+            neighbor_factor = 1.0 - 0.5 * np.minimum(neighbor_counts / 10.0, 0.8)
+            
+            # Scale food direction vectors by both distance and neighbor density
             unit_food = delta_food / norms[:, None]
-            food_vec = unit_food[:, 0] + 1j * unit_food[:, 1]
+            combined_scaling = food_scalings * neighbor_factor
+            
+            # Create complex vector for food attraction (fixing the dimension issue)
+            food_vec = (unit_food[:, 0] + 1j * unit_food[:, 1]) * combined_scaling
+            
+            # Add food attraction to total steering force
             S_total += food_attraction_strength * food_vec
 
             # Count boids that are "interested" in each food source (within 2x eat_radius)
@@ -225,16 +261,16 @@ def animate(i):
                     last_food_id = food_idx
                     
                     # Debug print
-                    print(f"Food at position {food_idx} consumed at frame {i}. Lifetime: {current_lifetime} frames")
-
-
-            food_active[eaten] = False
-            food_timers[eaten] = 0
+                    print(f"Food at position {food_idx} consumed at frame {i}. Lifetime: {current_lifetime} frames, MTU: {current_lifetime * frame_to_mtu_conversion:.2f}")
+                    
+                # Deactivate eaten food
+                food_active[eaten] = False
+                food_timers[eaten] = 0
     
     # Always process food respawning, regardless of active state
     food_timers[~food_active] += 1
     respawned = (food_timers >= respawn_delay) & (~food_active)
-
+    
     if np.any(respawned):
         food_active[respawned] = True
         food_timers[respawned] = 0
@@ -250,26 +286,13 @@ def animate(i):
     pos[:, 1] += sin * v0 * speed
     pos %= L
 
-    # Handle eating
-    # if food_released and len(food_positions) > 0:
-    #     if np.any(food_active):
-    #         global_indices = np.flatnonzero(food_active)[idx_food]
-    #         eaten = np.unique(global_indices[d_food < eat_radius])
-    #         food_active[eaten] = False
-    #         food_timers[eaten] = 0
-
-    #     food_timers[~food_active] += 1
-    #     respawned = (food_timers >= respawn_delay) & (~food_active)
-    #     food_active[respawned] = True
-    #     food_timers[respawned] = 0
-
     # Update plots
     qv.set_offsets(pos)
     qv.set_UVC(cos, sin, orient)
 
     if food_released:
         sc.set_offsets(food_positions[food_active])
-
+        
         # Display food metrics on screen
         if last_food_id is not None:
             food_text.set_text(f'Last food consumed: {last_food_id}, Times: {food_consumption_count[last_food_id]}, '
@@ -280,8 +303,9 @@ def animate(i):
     if i == num_frames - 1:
         plt.close(fig)
 
-    elapsed_time = i * 0.01
-    time_text.set_text(f'Time: {elapsed_time:.2f} s')
+    # Update time displays
+    frame_text.set_text(f'Frame: {i}')
+    elapsed_text.set_text(f'Real time: {real_elapsed:.2f}s')
 
     mean_heading = np.mean(np.exp(1j * orient))
     cohesion = np.abs(mean_heading)
@@ -293,11 +317,14 @@ def animate(i):
         recent = cohesion_history[-stabilization_window:]
         if max(recent) - min(recent) < stabilization_threshold and stabilized_frame is None:
             stabilized_frame = i
-            print(f"Group cohesion stabilized at frame {i} ({elapsed_time:.2f} s) with cohesion ≈ {cohesion:.3f}")
+            print(f"Group cohesion stabilized at frame {i} (MTU: {mtu:.2f}, Real time: {real_elapsed:.2f}s) with cohesion ≈ {cohesion:.3f}")
     
     neighbor_graph = sparse.coo_matrix((np.ones_like(dist.data), (dist.row, dist.col)), shape=(N, N))
     n_components, labels = connected_components(neighbor_graph, directed=False)
     flock_history.append(n_components)
+
+    # Update flock count display - NEW
+    flock_info_text.set_text(f'Flocks: {n_components}, Cohesion: {cohesion:.3f}')
 
     if food_released:
         post_food_flock_counts.append(n_components)
@@ -305,9 +332,9 @@ def animate(i):
     if n_components == 1 and 'flocking_frame' not in globals():
         global flocking_frame
         flocking_frame = i
-        print(f"All boids formed one flock at frame {i} ({elapsed_time:.2f} s)")
+        print(f"All boids formed one flock at frame {i} (MTU: {mtu:.2f}, Real time: {real_elapsed:.2f}s)")
 
-    return qv, sc, time_text, food_text
+    return qv, sc, frame_text, food_text, elapsed_text, flock_info_text  # Updated returned artists
 
 num_frames = 2000
 anim = FuncAnimation(fig, animate, frames=num_frames, interval=10, blit=True, repeat=False)
@@ -316,12 +343,12 @@ plt.show()
 # Plot original metrics
 plt.figure()
 if food_release_frame is not None:
-    t = np.arange(food_release_frame) * 0.01
-    plt.plot(t, cohesion_history[:food_release_frame])
+    frames = np.arange(food_release_frame)
+    plt.plot(frames, cohesion_history[:food_release_frame])
 else:
-    t = np.arange(len(cohesion_history)) * 0.01
-    plt.plot(t, cohesion_history)
-plt.xlabel("Time (s)")
+    frames = np.arange(len(cohesion_history))
+    plt.plot(frames, cohesion_history)
+plt.xlabel("Frame")
 plt.ylabel("Cohesion")
 plt.title("Group Cohesion (Before Food)")
 plt.grid(True)
@@ -329,9 +356,9 @@ plt.show()
 
 if food_release_frame is not None and len(post_food_cohesion) > 0:
     plt.figure()
-    t_post = np.arange(len(post_food_cohesion)) * 0.01  # Time after food appears
-    plt.plot(t_post, post_food_cohesion)
-    plt.xlabel("Time After Food Appears (s)")
+    frames_post = np.arange(len(post_food_cohesion))  # Frames after food appears
+    plt.plot(frames_post, post_food_cohesion)
+    plt.xlabel("Frames After Food Release")
     plt.ylabel("Cohesion")
     plt.title("Group Cohesion (After Food)")
     plt.grid(True)
@@ -339,12 +366,12 @@ if food_release_frame is not None and len(post_food_cohesion) > 0:
 
 plt.figure()
 if food_release_frame is not None:
-    t = np.arange(food_release_frame) * 0.01
-    plt.plot(t, flock_history[:food_release_frame])
+    frames = np.arange(food_release_frame)
+    plt.plot(frames, flock_history[:food_release_frame])
 else:
-    t = np.arange(len(flock_history)) * 0.01
-    plt.plot(t, flock_history)
-plt.xlabel("Time (s)")
+    frames = np.arange(len(flock_history))
+    plt.plot(frames, flock_history)
+plt.xlabel("Frame")
 plt.ylabel("Number of Flocks")
 plt.title("Flock Count (Before Food)")
 plt.grid(True)
@@ -352,9 +379,9 @@ plt.show()
 
 if food_release_frame is not None and len(post_food_flock_counts) > 0:
     plt.figure()
-    t_post = np.arange(len(post_food_flock_counts)) * 0.01  # Time after food appears
-    plt.plot(t_post, post_food_flock_counts)
-    plt.xlabel("Time After Food Appears (s)")
+    frames_post = np.arange(len(post_food_flock_counts))  # Frames after food appears
+    plt.plot(frames_post, post_food_flock_counts)
+    plt.xlabel("Frames After Food Release")
     plt.ylabel("Number of Flocks")
     plt.title("Flock Count (After Food)")
     plt.grid(True)
@@ -388,21 +415,22 @@ if food_release_frame is not None and len(food_lifetime_history) > 0:
     # 2. Food consumption timeline
     if len(food_consumption_times) > 0:
         plt.figure(figsize=(10, 6))
-        consumption_times_sec = [(t - food_release_frame) * 0.01 for t in food_consumption_times]
+        # Convert to frames after food release
+        consumption_frames = [t - food_release_frame for t in food_consumption_times]
         food_positions = food_consumption_positions
         
-        plt.scatter(consumption_times_sec, food_positions, marker='o', s=50, alpha=0.7)
-        plt.xlabel("Time After Food Release (s)")
+        plt.scatter(consumption_frames, food_positions, marker='o', s=50, alpha=0.7)
+        plt.xlabel("Frames After Food Release")
         plt.ylabel("Food Position ID")
         plt.title("Food Consumption Timeline")
         plt.grid(True)
         plt.yticks(range(num_food))
         
         # Add trend line if multiple consumptions
-        if len(consumption_times_sec) > 1:
-            z = np.polyfit(consumption_times_sec, food_positions, 1)
+        if len(consumption_frames) > 1:
+            z = np.polyfit(consumption_frames, food_positions, 1)
             p = np.poly1d(z)
-            x_trend = np.linspace(min(consumption_times_sec), max(consumption_times_sec), 100)
+            x_trend = np.linspace(min(consumption_frames), max(consumption_frames), 100)
             plt.plot(x_trend, p(x_trend), "r--", alpha=0.8)
         
         plt.show()
@@ -410,9 +438,9 @@ if food_release_frame is not None and len(food_lifetime_history) > 0:
     # 3. Food availability ratio over time
     if len(food_availability_ratio) > 0:
         plt.figure(figsize=(8, 5))
-        t_availability = np.arange(len(food_availability_ratio)) * 0.01
-        plt.plot(t_availability, food_availability_ratio, 'b-')
-        plt.xlabel("Time After Food Release (s)")
+        frames_availability = np.arange(len(food_availability_ratio))
+        plt.plot(frames_availability, food_availability_ratio, 'b-')
+        plt.xlabel("Frames After Food Release")
         plt.ylabel("Food Availability Ratio")
         plt.title("Proportion of Food Available Over Time")
         plt.ylim(0, 1.05)
@@ -423,7 +451,7 @@ if food_release_frame is not None and len(food_lifetime_history) > 0:
     if len(mean_time_to_consumption) > 0:
         plt.figure(figsize=(8, 5))
         plt.hist(mean_time_to_consumption, bins=10, color='purple', alpha=0.7)
-        plt.xlabel("Time from Creation to Consumption (frames)")
+        plt.xlabel("Frames from Creation to Consumption")
         plt.ylabel("Frequency")
         plt.title(f"Food Discovery Speed (Mean: {np.mean(mean_time_to_consumption):.1f} frames)")
         plt.grid(True, alpha=0.3)
@@ -441,11 +469,21 @@ if food_release_frame is not None and len(food_lifetime_history) > 0:
 
 # Summary statistics (print to console)
 if food_release_frame is not None and len(food_lifetime_history) > 0:
+    # Calculate simulation end time to get total run duration
+    end_time = time.time()
+    total_run_time = end_time - start_time
+    total_frames = num_frames
+    
     print("\n===== FOOD LIFETIME METRICS SUMMARY =====")
-    print(f"Total number of food consumptions: {len(food_lifetime_history)}")
-    print(f"Average food lifetime: {np.mean(food_lifetime_history):.2f} frames ({np.mean(food_lifetime_history)*0.01:.3f} seconds)")
-    print(f"Max food lifetime: {np.max(food_lifetime_history)} frames ({np.max(food_lifetime_history)*0.01:.3f} seconds)")
-    print(f"Min food lifetime: {np.min(food_lifetime_history)} frames ({np.min(food_lifetime_history)*0.01:.3f} seconds)")
+    print(f"Simulation run time: {total_run_time:.2f} seconds wall clock time")
+    print(f"Total frames: {total_frames}")
+    print(f"Average frame rate: {total_frames/total_run_time:.2f} frames per second")
+    print(f"Food released at frame: {food_release_frame}")
+    
+    print(f"\nTotal number of food consumptions: {len(food_lifetime_history)}")
+    print(f"Average food lifetime: {np.mean(food_lifetime_history):.2f} frames")
+    print(f"Max food lifetime: {np.max(food_lifetime_history)} frames")
+    print(f"Min food lifetime: {np.min(food_lifetime_history)} frames")
     
     if len(mean_time_to_consumption) > 0:
         print(f"Average time from creation to consumption: {np.mean(mean_time_to_consumption):.2f} frames")
@@ -457,3 +495,4 @@ if food_release_frame is not None and len(food_lifetime_history) > 0:
     for i in range(num_food):
         print(f"  Food ID {i}: {food_consumption_count[i]} consumptions, {food_total_frames_active[i]} frames active")
     
+    print("=========================================\n")

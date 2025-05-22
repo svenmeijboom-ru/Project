@@ -21,7 +21,7 @@ eta = 0.1  # Noise parameter
 # Food parameters
 num_food = 10  # number of food sources
 eat_radius = 0.5  # distance at which food is eaten
-food_attraction_strength = 1.0  # strength of attraction to food
+food_attraction_strength = 0  # strength of attraction to food
 
 # Initialize particles
 pos = np.random.uniform(0, L, size=(N, 2))
