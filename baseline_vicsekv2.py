@@ -37,11 +37,11 @@ N = int(rho*30)  # Number of particles
 print(N)
 
 # Particle movement parameters
-w_align = 0.3      # Weight for Vicsek alignment
-w_cohesion = 0.1   # Weight for Boids cohesion
-w_separation = 0.5  # Weight for Boids separation
-separation_radius = 0.3
-r0 = 1 # Interaction radius
+w_align = 1.0      # Weight for Vicsek alignment
+w_cohesion = 0.02   # Weight for Boids cohesion
+w_separation = 0.01  # Weight for Boids separation
+separation_radius = 0.5
+r0 = 3 # Interaction radius
 deltat = 1.0  # Time step (unused)
 factor = 0.5
 v0 = r0/deltat*factor  # Base speed
