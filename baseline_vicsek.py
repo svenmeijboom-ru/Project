@@ -19,26 +19,26 @@ post_food_cohesion = []
 post_food_flock_counts = []
 
 # Simulation parameters
-speed = 0.3
+speed = 0.5
 L = 32.0  # System size
 rho = 3.0  # Particle density
 N = int(rho*30)  # Number of particles
 print(N)
 
 # Particle movement parameters
-w_align = 1.0
-w_cohesion = 0.02
-w_separation = 0.01
+w_align = 0.3      # Weight for Vicsek alignment
+w_cohesion = 0.1   # Weight for Boids cohesion
+w_separation = 0.5  # Weight for Boids separation
 separation_radius = 0.3
-r0 = 2 # Interaction radius
+r0 = 1 # Interaction radius
 deltat = 1.0  # Time step (unused)
 factor = 0.5
 v0 = r0/deltat*factor  # Base speed
 eta = 0.05  # Noise parameter
 
 # Food parameters
-num_food = 4  # number of food sources (fixed positions)
-eat_radius = 0.5
+num_food = 9  # number of food sources (fixed positions)
+eat_radius = 1
 food_attraction_strength = 1
 
 # Food lifetime metrics
@@ -99,7 +99,7 @@ food_positions = create_evenly_spaced_food(grid_side, grid_side, L)[:num_food]
 
 # Track which food sources are "active" (True = available)
 food_active = np.ones(num_food, dtype=bool)
-respawn_delay = 10  # frames (0.1 second at 10 ms/frame)
+respawn_delay = 100  # frames (0.1 second at 10 ms/frame)
 food_timers = np.zeros(num_food, dtype=int)
 food_released = False # only release food spawn after flock has stabilized
 
