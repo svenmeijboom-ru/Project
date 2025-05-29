@@ -9,8 +9,6 @@ import random
 import os
 import time
 
-np.random.seed(123) 
-
 class CFG:
     seed = 123
 
@@ -22,24 +20,24 @@ class CFG:
     NUM_FRAMES = 2000
 
     # Particle movement parameters
-    W_ALIGN = 1.0      # Weight for Vicsek alignment
+    W_ALIGN = 1.0 # Weight for Vicsek alignment
     R0 = 3 # Interaction radius
     v0 = 0.5 #R0/DELTAT*FACTOR  # Base speed
     ETA = 0.05  # Noise parameter
 
     # Initialization of particles
-    CLUSTERED = False
+    CLUSTERED = True
 
     # Food
-    FOOD = False
-    NF = 1  # number of food sources 
+    FOOD = True
+    NF = 2  # number of food sources 
     EAT_RADIUS = 0.5
     FOOD_STRENGTH = 0.0
-    RESPAWN_DELAY = 20 # = 1 second
+    RESPAWN_DELAY = 50 # = 0.5 second
 
     # Metrics
     METRICS = True
-    PLOT_METRICS = True
+    PLOT_METRICS = False
 
     DEBUG = False
 
@@ -49,9 +47,16 @@ def set_seed(seed=123):
     random.seed(seed)
     np.random.seed(seed)
 
+set_seed(cfg.seed)
+
 def initialize_particles(cfg):
     if cfg.CLUSTERED:
-        cluster_center = np.array([cfg.L / 2, cfg.L / 2])
+        if cfg.NF == 1:
+            food_center = np.array([cfg.L / 2, cfg.L / 2])
+            offset_above = 8.0  # vertical offset
+            cluster_center = (food_center + np.array([0.0, offset_above])) % cfg.L
+        else:
+            cluster_center = np.array([cfg.L / 2, cfg.L / 2])
         cluster_radius = 1.0  # Controls spread of initial cluster
         offsets = np.random.normal(scale=cluster_radius, size=(cfg.N, 2))
         pos = (cluster_center + offsets) % cfg.L
@@ -84,8 +89,16 @@ def run_simulation():
     ax.set_ylim(0, cfg.L)
 
     if cfg.FOOD:
-        grid_side = int(np.ceil(np.sqrt(cfg.NF)))
-        food_positions = create_evenly_spaced_food(grid_side, grid_side, cfg.L)[:cfg.NF]
+        if cfg.NF == 2:
+            offset = cfg.L * 0.25
+            center_y = cfg.L / 2
+            food_positions = np.array([
+                [cfg.L / 2 - offset, center_y],
+                [cfg.L / 2 + offset, center_y]
+            ])
+        else:
+            grid_side = int(np.ceil(np.sqrt(cfg.NF)))
+            food_positions = create_evenly_spaced_food(grid_side, grid_side, cfg.L)[:cfg.NF]
         food_active = np.ones(cfg.NF, dtype=bool)
         food_timers = np.zeros(cfg.NF, dtype=int)
         food_lifetime = np.zeros(cfg.NF, dtype=int)
@@ -135,12 +148,11 @@ def run_simulation():
             food_lifetime[food_active] += 1
             food_timers[~food_active] += 1
 
-            if i > 0:  # Only apply respawn delay after frame 0
-                respawned = (food_timers >= cfg.RESPAWN_DELAY) & (~food_active)
-                if np.any(respawned):
-                    food_active[respawned] = True
-                    food_timers[respawned] = 0
-                    food_creation_frame[respawned] = i
+            respawned = (food_timers >= cfg.RESPAWN_DELAY) & (~food_active)
+            if np.any(respawned):
+                food_active[respawned] = True
+                food_timers[respawned] = 0
+                food_creation_frame[respawned] = i
             
             sc.set_offsets(food_positions[food_active])
 
@@ -167,6 +179,7 @@ def run_simulation():
 
         return qv, sc, time_text
     
+    animate(0)
     anim = FuncAnimation(fig, animate, frames=cfg.NUM_FRAMES, interval=10, blit=True, repeat=False, cache_frame_data=False)
     plt.show()
 
