@@ -29,15 +29,15 @@ class CFG:
     CLUSTERED = True
 
     # Food
-    FOOD = True
-    NF = 2  # number of food sources 
+    FOOD = False
+    NF = 1  # number of food sources 
     EAT_RADIUS = 0.5
     FOOD_STRENGTH = 0.0
     RESPAWN_DELAY = 50 # = 0.5 second
 
     # Metrics
     METRICS = True
-    PLOT_METRICS = False
+    PLOT_METRICS = True
 
     DEBUG = False
 
