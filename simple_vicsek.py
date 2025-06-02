@@ -30,14 +30,14 @@ class CFG:
 
     # Food
     FOOD = False
-    NF = 1  # number of food sources 
+    NF = 2  # number of food sources 
     EAT_RADIUS = 0.5
     FOOD_STRENGTH = 0.0
     RESPAWN_DELAY = 50 # = 0.5 second
 
     # Metrics
     METRICS = True
-    PLOT_METRICS = True
+    PLOT_METRICS = False
 
     DEBUG = False
 
@@ -54,9 +54,10 @@ def initialize_particles(cfg):
         if cfg.NF == 1:
             food_center = np.array([cfg.L / 2, cfg.L / 2])
             offset_above = 8.0  # vertical offset
-            cluster_center = (food_center + np.array([0.0, offset_above])) % cfg.L
         else:
-            cluster_center = np.array([cfg.L / 2, cfg.L / 2])
+            food_center = np.array([cfg.L / 2, cfg.L / 2])
+            offset_above = -12.0  # vertical offset
+            cluster_center = (food_center + np.array([0.0, offset_above])) % cfg.L
         cluster_radius = 1.0  # Controls spread of initial cluster
         offsets = np.random.normal(scale=cluster_radius, size=(cfg.N, 2))
         pos = (cluster_center + offsets) % cfg.L

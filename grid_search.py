@@ -5,7 +5,6 @@ from scipy.spatial import cKDTree
 from scipy import sparse
 from scipy.sparse.csgraph import connected_components
 
-# Re-defining the necessary parts of simple_vicsek here to make this standalone.
 class CFG:
     seed = 123
     L = 32.0
@@ -63,7 +62,22 @@ def compute_average_cohesion(food_strength, cfg_template, seed):
     pos, orient = initialize_particles(cfg)
     cohesion_history = []
 
-    for _ in range(cfg.NUM_FRAMES):
+    # Setup food
+    if cfg.FOOD:
+        if cfg.NF == 2:
+            offset = cfg.L * 0.25
+            center_y = cfg.L / 2
+            food_positions = np.array([
+                [cfg.L / 2 - offset, center_y],
+                [cfg.L / 2 + offset, center_y]
+            ])
+        else:
+            food_positions = create_evenly_spaced_food(int(np.sqrt(cfg.NF)), int(np.sqrt(cfg.NF)), cfg.L)[:cfg.NF]
+
+        food_active = np.ones(cfg.NF, dtype=bool)
+        food_timers = np.zeros(cfg.NF, dtype=int)
+
+    for t in range(cfg.NUM_FRAMES):
         tree = cKDTree(pos, boxsize=[cfg.L, cfg.L])
         dist = tree.sparse_distance_matrix(tree, max_distance=cfg.R0, output_type='coo_matrix')
         orient_neighbors = orient[dist.col]
@@ -73,23 +87,26 @@ def compute_average_cohesion(food_strength, cfg_template, seed):
         S_total = cfg.W_ALIGN * alignment_sum
 
         if cfg.FOOD:
-            if cfg.NF == 2:
-                offset = cfg.L * 0.25
-                center_y = cfg.L / 2
-                food_positions = np.array([
-                    [cfg.L / 2 - offset, center_y],
-                    [cfg.L / 2 + offset, center_y]
-                ])
-            else:
-                food_positions = create_evenly_spaced_food(int(np.sqrt(cfg.NF)), int(np.sqrt(cfg.NF)), cfg.L)[:cfg.NF]
-            tree_food = cKDTree(food_positions, boxsize=[cfg.L, cfg.L])
-            d_food, idx_food = tree_food.query(pos, k=1)
-            f_pos = food_positions[idx_food]
-            delta_food = (f_pos - pos + cfg.L / 2) % cfg.L - cfg.L / 2
-            norms = np.linalg.norm(delta_food, axis=1)
-            unit_food = delta_food / (norms[:, None] + 1e-8)
-            food_vec = unit_food[:, 0] + 1j * unit_food[:, 1]
-            S_total += cfg.FOOD_STRENGTH * food_vec
+            active_food = food_positions[food_active]
+            if len(active_food) > 0:
+                tree_food = cKDTree(active_food, boxsize=[cfg.L, cfg.L])
+                d_food, idx_food = tree_food.query(pos, k=1)
+                f_pos = active_food[idx_food]
+                delta_food = (f_pos - pos + cfg.L / 2) % cfg.L - cfg.L / 2
+                norms = np.linalg.norm(delta_food, axis=1)
+                unit_food = delta_food / (norms[:, None] + 1e-8)
+                food_vec = unit_food[:, 0] + 1j * unit_food[:, 1]
+                S_total += cfg.FOOD_STRENGTH * food_vec
+
+                global_indices = np.flatnonzero(food_active)[idx_food]
+                eaten = np.unique(global_indices[d_food < cfg.EAT_RADIUS])
+                food_active[eaten] = False
+                food_timers[eaten] = 0
+
+            food_timers[~food_active] += 1
+            respawned = (food_timers >= cfg.RESPAWN_DELAY) & (~food_active)
+            food_active[respawned] = True
+            food_timers[respawned] = 0
 
         orient = np.angle(S_total) + cfg.ETA * np.random.uniform(-np.pi, np.pi, size=cfg.N)
         cos, sin = np.cos(orient), np.sin(orient)
