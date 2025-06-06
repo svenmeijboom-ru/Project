@@ -32,26 +32,26 @@ class CFG:
     FOOD = True
     NF = 2  # number of food sources 
     EAT_RADIUS = 0.5
-    FOOD_STRENGTH = 10.0
-    RESPAWN_DELAY = 50 # = 0.5 second
+    FOOD_STRENGTH = 100000.0
+    RESPAWN_DELAY = 50 # = 0.5 second. This is the respawn of the food
 
     # Metrics
     METRICS = True
     PLOT_METRICS = False
 
     # Start delay (in seconds) - Fixed to be actual seconds
-    START_DELAY = 5  # Add this parameter to control delay
+    START_DELAY = 3  # Add this parameter to control delay
 
     # Stop simulation when food is eaten
     STOP_ON_FOOD_EATEN = True  # Set to False to continue simulation after food is eaten
 
     # Experiment modes
-    MODE = 1  # 1 = Single simulation, 2 = Multiple experiments, 4 = Noise vs Food Sources
+    MODE = 2  # 1 = Single simulation, 2 = Multiple experiments, 4 = Noise vs Food Sources
     
     # Mode 2 parameters (for automated experiments)
-    FOOD_STRENGTH_MIN = 0.0
-    FOOD_STRENGTH_MAX = 20.0
-    FOOD_STRENGTH_STEP = 4.0
+    FOOD_STRENGTH_MIN = 100.0
+    FOOD_STRENGTH_MAX = 1000.0
+    FOOD_STRENGTH_STEP = 200.0
 
     # Mode 4 parameters (for noise vs food sources experiments)
     ETA_MIN = 0.01
@@ -304,13 +304,14 @@ def run_multiple_experiments():
     # Create the plot
     plt.figure(figsize=(12, 8))
     
-    # Use different colors for each line
-    colors = plt.cm.viridis(np.linspace(0, 1, len(food_strengths)))
+    # Define easily distinguishable colors
+    distinct_colors = ['black', 'red', 'blue', 'green', 'purple', 'orange', 'brown', 'pink', 'gray', 'olive', 'cyan', 'magenta']
     
     for i, fs in enumerate(food_strengths):
         cohesion_data = all_cohesion_histories[fs]
         frames = np.arange(len(cohesion_data))
-        plt.plot(frames, cohesion_data, label=f'FS = {fs}', color=colors[i], linewidth=1.5)
+        color = distinct_colors[i % len(distinct_colors)]  # Cycle through colors if more lines than colors
+        plt.plot(frames, cohesion_data, label=f'FS = {fs}', color=color, linewidth=1.5)
     
     plt.xlabel('Frame')
     plt.ylabel('Cohesion')
@@ -368,12 +369,13 @@ def run_noise_food_experiments():
     # Create the plot
     plt.figure(figsize=(12, 8))
     
-    # Use different colors for each NF value
-    colors = plt.cm.Set1(np.linspace(0, 1, len(cfg.NF_VALUES)))
+    # Define easily distinguishable colors for different NF values
+    distinct_colors = ['black', 'red', 'blue', 'green', 'purple', 'orange', 'brown', 'pink']
     
     for i, nf in enumerate(cfg.NF_VALUES):
+        color = distinct_colors[i % len(distinct_colors)]  # Cycle through colors if more lines than colors
         plt.plot(eta_values, avg_cohesion_data[nf], 
-                label=f'NF = {nf}', color=colors[i], 
+                label=f'NF = {nf}', color=color, 
                 linewidth=2, marker='o', markersize=4)
     
     plt.xlabel('Noise Level (ETA)')
