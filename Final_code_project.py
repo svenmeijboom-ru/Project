@@ -15,7 +15,9 @@ class CFG:
     # Simulation parameters
     L = 32.0  # System size
     N = 180
+    PLACEMENT_FACTOR = 2 # #This is essentially the place where on the Y-axis the food is placed. It is the factor by which L is divided to place the food source. 
 
+    
     # Simulation duration
     NUM_FRAMES = 2000
 
@@ -32,7 +34,7 @@ class CFG:
     FOOD = True
     NF = 2  # number of food sources 
     EAT_RADIUS = 0.5
-    FOOD_STRENGTH = 100000.0
+    FOOD_STRENGTH = 10.0
     RESPAWN_DELAY = 50 # = 0.5 second. This is the respawn of the food
 
     # Metrics
@@ -46,12 +48,12 @@ class CFG:
     STOP_ON_FOOD_EATEN = True  # Set to False to continue simulation after food is eaten
 
     # Experiment modes
-    MODE = 2  # 1 = Single simulation, 2 = Multiple experiments, 4 = Noise vs Food Sources
+    MODE = 1  # 1 = Single simulation, 2 = Multiple experiments, 4 = Noise vs Food Sources
     
     # Mode 2 parameters (for automated experiments)
-    FOOD_STRENGTH_MIN = 100.0
-    FOOD_STRENGTH_MAX = 1000.0
-    FOOD_STRENGTH_STEP = 200.0
+    FOOD_STRENGTH_MIN = 0.0
+    FOOD_STRENGTH_MAX = 0.001
+    FOOD_STRENGTH_STEP = 0.001
 
     # Mode 4 parameters (for noise vs food sources experiments)
     ETA_MIN = 0.01
@@ -139,7 +141,7 @@ def run_single_simulation(food_strength_value=None, eta_value=None, nf_value=Non
             food_positions = np.array([[cfg.L / 2, cfg.L / 2]])
         elif current_nf == 2:
             offset = cfg.L * 0.25
-            center_y = cfg.L / 2
+            center_y = cfg.L / PLACEMENT_FACTOR
             food_positions = np.array([
                 [cfg.L / 2 - offset, center_y],
                 [cfg.L / 2 + offset, center_y]
