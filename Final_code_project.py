@@ -40,13 +40,13 @@ class CFG:
     PLOT_METRICS = False
 
     # Start delay (in seconds) - Fixed to be actual seconds
-    START_DELAY = 0.5  # Add this parameter to control delay
+    START_DELAY = 5  # Add this parameter to control delay
 
     # Stop simulation when food is eaten
     STOP_ON_FOOD_EATEN = True  # Set to False to continue simulation after food is eaten
 
     # Experiment modes
-    MODE = 3  # 1 = Single simulation, 2 = Multiple experiments, 4 = Noise vs Food Sources
+    MODE = 1  # 1 = Single simulation, 2 = Multiple experiments, 4 = Noise vs Food Sources
     
     # Mode 2 parameters (for automated experiments)
     FOOD_STRENGTH_MIN = 0.0
@@ -163,24 +163,26 @@ def run_single_simulation(food_strength_value=None, eta_value=None, nf_value=Non
         qv = ax.quiver(pos[:, 0], pos[:, 1], cos0, sin0, orient, clim=[-np.pi, np.pi])
         time_text = ax.text(0.02, 0.95, '', transform=ax.transAxes, fontsize=12, color='black')
 
-    # Fixed delay calculation: animation interval is 10ms, so 100fps
-    # START_DELAY is in seconds, so multiply by 100 to get frames
-    delay_frames = int(cfg.START_DELAY * 100) if show_animation else 0
+    # Initialize timing variables for real-time delay
+    start_time = time.time() if show_animation else None
     simulation_started = False
     simulation_stopped = False
 
     def simulate_frame(i):
         nonlocal pos, orient, food_active, food_timers, food_lifetime, food_creation_frame, food_lifetime_history, simulation_started, simulation_stopped
         
+        # Check if we're still in the delay period (using real time)
+        if show_animation and start_time is not None:
+            elapsed_time = time.time() - start_time
+            if elapsed_time < cfg.START_DELAY:
+                remaining_time = cfg.START_DELAY - elapsed_time
+                time_text.set_text(f'Starting in: {remaining_time:.1f}s')
+                return qv, sc, time_text
+        
         # For consistency, always use the actual simulation frame number
         # In Mode 1: subtract delay_frames, In Mode 2: use i directly
+        delay_frames = int(cfg.START_DELAY * 100) if show_animation else 0
         sim_frame = i - delay_frames if show_animation and i >= delay_frames else (i if not show_animation else 0)
-        
-        # Don't process simulation logic during delay period in animated mode
-        if show_animation and i < delay_frames:
-            remaining_time = (delay_frames - i) / 100.0
-            time_text.set_text(f'Starting in: {remaining_time:.1f}s')
-            return qv, sc, time_text
         
         # Check if simulation has been stopped
         if simulation_stopped:
@@ -268,6 +270,8 @@ def run_single_simulation(food_strength_value=None, eta_value=None, nf_value=Non
 
     if show_animation:
         simulate_frame(0)
+        # For animation, we need enough frames to cover the delay + simulation
+        delay_frames = int(cfg.START_DELAY * 100)
         total_frames = cfg.NUM_FRAMES + delay_frames
         anim = FuncAnimation(fig, simulate_frame, frames=total_frames, interval=10, blit=True, repeat=False, cache_frame_data=False)
         plt.show()
