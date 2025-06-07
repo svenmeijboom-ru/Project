@@ -9,13 +9,16 @@ import random
 import os
 import time
 
+# Set larger font size for all plots
+plt.rc('font', size=16)
+
 class CFG:
     seed = 123
 
     # Simulation parameters
     L = 32.0  # System size
     N = 180
-    PLACEMENT_FACTOR = 2 # #This is essentially the place where on the Y-axis the food is placed. It is the factor by which L is divided to place the food source. 
+    PLACEMENT_FACTOR = 3 # #This is essentially the place where on the Y-axis the food is placed. It is the factor by which L is divided to place the food source. 
 
     
     # Simulation duration
@@ -48,12 +51,12 @@ class CFG:
     STOP_ON_FOOD_EATEN = True  # Set to False to continue simulation after food is eaten
 
     # Experiment modes
-    MODE = 1  # 1 = Single simulation, 2 = Multiple experiments, 4 = Noise vs Food Sources
+    MODE = 2  # 1 = Single simulation, 2 = Multiple experiments, 4 = Noise vs Food Sources
     
     # Mode 2 parameters (for automated experiments)
     FOOD_STRENGTH_MIN = 0.0
-    FOOD_STRENGTH_MAX = 0.001
-    FOOD_STRENGTH_STEP = 0.001
+    FOOD_STRENGTH_MAX = 5.0
+    FOOD_STRENGTH_STEP = 1.0
 
     # Mode 4 parameters (for noise vs food sources experiments)
     ETA_MIN = 0.01
@@ -141,7 +144,7 @@ def run_single_simulation(food_strength_value=None, eta_value=None, nf_value=Non
             food_positions = np.array([[cfg.L / 2, cfg.L / 2]])
         elif current_nf == 2:
             offset = cfg.L * 0.25
-            center_y = cfg.L / PLACEMENT_FACTOR
+            center_y = cfg.L / cfg.PLACEMENT_FACTOR
             food_positions = np.array([
                 [cfg.L / 2 - offset, center_y],
                 [cfg.L / 2 + offset, center_y]
