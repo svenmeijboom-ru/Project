@@ -38,7 +38,7 @@ Edit parameters in the `CFG` class inside `Script.py` to change behaviors like n
 
 ##  Configuration Parameters
 
-All tunable settings are located in the `CFG` class in `f.py`. Key ones include:
+All tunable settings are located in the `CFG` class in `Script.py`. Key ones include:
 
 | Name                      | Purpose                                             |
 |---------------------------|-----------------------------------------------------|
