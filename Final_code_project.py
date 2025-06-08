@@ -12,17 +12,19 @@ import time
 # Set larger font size for all plots
 plt.rc('font', size=16)
 
+
 class CFG:
     seed = 123
 
     # Simulation parameters
     L = 32.0  # System size
     N = 180
-    PLACEMENT_FACTOR = 3 # #This is essentially the place where on the Y-axis the food is placed. It is the factor by which L is divided to place the food source. 
-
-    
+    VERTICAL_PLACEMENT_FACTOR = 2 #This is the place where on the Y-axis the food is placed. It is the factor by which L is divided to place the food source. 
+    LEFT_HORIZONTAL_PLACEMENT_FACTOR = 2 #This is the place where on the X-axis the left food source is placed. It is the factor by which L is divided to place the food source. 
+    RIGHT_HORIZONTAL_PLACEMENT_FACTOR = 1.7 #This is the place where on the X-axis the right food source is placed. It is the factor by which L is divided to place the food source. 
+   
     # Simulation duration
-    NUM_FRAMES = 2000
+    NUM_FRAMES = 600
 
     # Particle movement parameters
     W_ALIGN = 1.0 # Weight for Vicsek alignment
@@ -34,15 +36,15 @@ class CFG:
     CLUSTERED = True
 
     # Food
-    FOOD = True
-    NF = 2  # number of food sources 
+    FOOD = False
+    NF = 0 # number of food sources 
     EAT_RADIUS = 0.5
-    FOOD_STRENGTH = 10.0
-    RESPAWN_DELAY = 50 # = 0.5 second. This is the respawn of the food
+    FOOD_STRENGTH = 0.0
+    RESPAWN_DELAY = 15 # = 0.5 second. This is the respawn of the food
 
     # Metrics
     METRICS = True
-    PLOT_METRICS = False
+    PLOT_METRICS = True
 
     # Start delay (in seconds) - Fixed to be actual seconds
     START_DELAY = 3  # Add this parameter to control delay
@@ -51,11 +53,11 @@ class CFG:
     STOP_ON_FOOD_EATEN = True  # Set to False to continue simulation after food is eaten
 
     # Experiment modes
-    MODE = 2  # 1 = Single simulation, 2 = Multiple experiments, 4 = Noise vs Food Sources
+    MODE = 1  # 1 = Single simulation, 2 = Multiple experiments, 4 = Noise vs Food Sources
     
     # Mode 2 parameters (for automated experiments)
-    FOOD_STRENGTH_MIN = 0.0
-    FOOD_STRENGTH_MAX = 5.0
+    FOOD_STRENGTH_MIN = 5.0
+    FOOD_STRENGTH_MAX = 10.0
     FOOD_STRENGTH_STEP = 1.0
 
     # Mode 4 parameters (for noise vs food sources experiments)
@@ -93,7 +95,7 @@ def initialize_particles(cfg):
         pos = (cluster_center + offsets) % cfg.L
     else:
         pos = np.random.uniform(0, cfg.L, size=(cfg.N, 2))
-    orient = np.random.uniform(-np.pi, np.pi, size=cfg.N)
+    orient = np.full(cfg.N, np.pi/2)
     return pos, orient
 
 def create_evenly_spaced_food(num_x, num_y, L):
@@ -135,6 +137,7 @@ def run_single_simulation(food_strength_value=None, eta_value=None, nf_value=Non
         fig, ax = plt.subplots(figsize=(6, 6))
         ax.set_xlim(0, cfg.L)
         ax.set_ylim(0, cfg.L)
+        ax.set_aspect('equal') 
     else:
         fig, ax = None, None
 
@@ -144,10 +147,10 @@ def run_single_simulation(food_strength_value=None, eta_value=None, nf_value=Non
             food_positions = np.array([[cfg.L / 2, cfg.L / 2]])
         elif current_nf == 2:
             offset = cfg.L * 0.25
-            center_y = cfg.L / cfg.PLACEMENT_FACTOR
+            center_y = cfg.L / cfg.VERTICAL_PLACEMENT_FACTOR
             food_positions = np.array([
-                [cfg.L / 2 - offset, center_y],
-                [cfg.L / 2 + offset, center_y]
+                [cfg.L / cfg.LEFT_HORIZONTAL_PLACEMENT_FACTOR - offset, center_y],
+                [cfg.L / cfg.RIGHT_HORIZONTAL_PLACEMENT_FACTOR + offset, center_y]
             ])
         else:
             grid_side = int(np.ceil(np.sqrt(current_nf)))
@@ -259,6 +262,8 @@ def run_single_simulation(food_strength_value=None, eta_value=None, nf_value=Non
             qv.set_UVC(cos, sin, orient)
             time_text.set_text(f'Frame: {sim_frame}')
 
+            
+
         if cfg.DEBUG and sim_frame % 100 == 0:
             print(f"Frame {sim_frame} took {time.perf_counter() - start:.4f}s")
 
@@ -316,7 +321,13 @@ def run_multiple_experiments():
         cohesion_data = all_cohesion_histories[fs]
         frames = np.arange(len(cohesion_data))
         color = distinct_colors[i % len(distinct_colors)]  # Cycle through colors if more lines than colors
-        plt.plot(frames, cohesion_data, label=f'FS = {fs}', color=color, linewidth=1.5)
+        
+        # Use different line styles to help distinguish overlapping lines
+        line_styles = ['-', '--', '-.', ':', '-', '--', '-.', ':', '-', '--', '-.', ':']
+        line_style = line_styles[i % len(line_styles)]
+        
+        plt.plot(frames, cohesion_data, label=f'FS = {fs}', color=color, 
+                linewidth=2.0, linestyle=line_style, alpha=0.8)
     
     plt.xlabel('Frame')
     plt.ylabel('Cohesion')
