@@ -30,7 +30,8 @@ The script runs in one of several modes (controlled via `CFG.MODE`):
 
 - `MODE = 1`: Run a single flocking simulation (with optional animation).
 - `MODE = 2`: Run experiments over varying food strengths and plot group cohesion.
-- `MODE = 3`: Run noise vs. food count experiments and analyze average cohesion.
+- `MODE = 3`: Check if the run with modes 2 and 4 produce the same result as with the same parameters in mode 1.
+- `MODE = 4`: Run noise vs. food count experiments and analyze average cohesion.
 
 Edit parameters in the `CFG` class inside `Script.py` to change behaviors like noise, number of food sources, and food strength.
 
@@ -58,7 +59,7 @@ All tunable settings are located in the `CFG` class in `Script.py`. Key ones inc
 ##  Output
 
 - **Animation** (in MODE 1): Shown live using `matplotlib`'s quiver plot.
-- **Plots** (in MODE 2 & 3): Saved automatically as `.png` images:
+- **Plots** (in MODE 2 & 4): Saved automatically as `.png` images:
   - `cohesion_graph-NF_*.png`
   - `noise_vs_cohesion-*.png`
 
