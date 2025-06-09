@@ -19,11 +19,11 @@ class CFG:
     L = 32.0  # System size
     N = 180
     VERTICAL_PLACEMENT_FACTOR = 2
-    LEFT_HORIZONTAL_PLACEMENT_FACTOR = 2
-    RIGHT_HORIZONTAL_PLACEMENT_FACTOR = 1.7
+    LEFT_HORIZONTAL_PLACEMENT = 8.0
+    RIGHT_HORIZONTAL_PLACEMENT = 24.0
 
     # Duration
-    NUM_FRAMES = 600
+    NUM_FRAMES = 800
 
     # Particle movement
     W_ALIGN = 1.0
@@ -35,10 +35,10 @@ class CFG:
     CLUSTERED = True
 
     # Food
-    FOOD = False
-    NF = 0
+    FOOD = True
+    NF = 2
     EAT_RADIUS = 0.5
-    FOOD_STRENGTH = 0.0
+    FOOD_STRENGTH = 15.0
     RESPAWN_DELAY = 15
 
     # Metrics
@@ -50,7 +50,7 @@ class CFG:
     STOP_ON_FOOD_EATEN = True
 
     # Modes
-    MODE = 3
+    MODE = 1
     FOOD_STRENGTH_MIN = 5.0
     FOOD_STRENGTH_MAX = 10.0
     FOOD_STRENGTH_STEP = 1.0
@@ -173,8 +173,10 @@ def run_single_simulation(food_strength_value=None, eta_value=None, nf_value=Non
             offset = cfg.L * 0.25
             center_y = cfg.L / cfg.VERTICAL_PLACEMENT_FACTOR
             food_positions = np.array([
-                [cfg.L / cfg.LEFT_HORIZONTAL_PLACEMENT_FACTOR - offset, center_y],
-                [cfg.L / cfg.RIGHT_HORIZONTAL_PLACEMENT_FACTOR + offset, center_y]
+                # [cfg.L / cfg.LEFT_HORIZONTAL_PLACEMENT_FACTOR - offset, center_y],
+                # [cfg.L / cfg.RIGHT_HORIZONTAL_PLACEMENT_FACTOR + offset, center_y]
+                [cfg.LEFT_HORIZONTAL_PLACEMENT, center_y],
+                [cfg.RIGHT_HORIZONTAL_PLACEMENT, center_y]
             ])
         else:
             grid_side = int(np.ceil(np.sqrt(current_nf)))
